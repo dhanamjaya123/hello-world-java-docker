@@ -1,21 +1,27 @@
-FROM openjdk:11.0.7-jre-slim-buster
- 
-LABEL base-image="openjdk:11.0.7-jre-slim-buster" \
-      java-version="11.0.7" \
-      purpose="Hello World with Java and Dockerfile"
- 
-MAINTAINER Muhammad Edwin < edwin at redhat dot com >
- 
-# set working directory at /deployments
-WORKDIR /deployments
- 
-# copy my jar file
-COPY existing-app.jar app.jar
- 
-# gives uid
-USER 185
- 
+FROM   registry.access.redhat.com/ubi8/ubi:8.0
+
+MAINTAINER   Red Hat Training <training@redhat.com>
+
+# command line options to pass to the JVM
+ENV	  JAVA_OPTIONS -Xmx512m
+
+
+# Install the Java runtime, create a user for running the app, and set permissions
+RUN   yum install -y --disableplugin=subscription-manager java-11.0.7-openjdk-headless && \
+      yum clean all --disableplugin=subscription-manager -y && \
+      mkdir -p /opt/app-root/bin
+
+# Copy the runnable fat JAR to the container.
+ADD   https://github.com/RedHatTraining/DO288-apps/releases/download/OCP-4.1-1/hello-java.jar /opt/app-root/bin/
+
+COPY  run-app.sh /opt/app-root/bin/
+
+RUN chgrp -R 0 /opt/app-root && \
+ chmod -R g=u /opt/app-root
+
 EXPOSE 8080
- 
-# run it
-CMD ["java", "-jar","app.jar"]
+
+USER  1001
+
+# Run the fat JAR
+CMD   /opt/app-root/bin/run-app.sh
