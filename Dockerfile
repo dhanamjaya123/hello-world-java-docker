@@ -1,27 +1,31 @@
-FROM   registry.access.redhat.com/ubi8/ubi:8.0
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.1
 
-MAINTAINER   Red Hat Training <training@redhat.com>
+ARG JAVA_PACKAGE=java-11-openjdk-headless
+ARG RUN_JAVA_VERSION=1.3.8
 
-# command line options to pass to the JVM
-ENV	  JAVA_OPTIONS -Xmx512m
+ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en'
 
+# Install java and the run-java script
+# Also set up permissions for user `1001`
+RUN microdnf install curl ca-certificates ${JAVA_PACKAGE} \
+    && microdnf update \
+    && microdnf clean all \
+    && mkdir /deployments \
+    && chown 1001 /deployments \
+    && chmod "g+rwX" /deployments \
+    && chown 1001:root /deployments \
+    && curl https://repo1.maven.org/maven2/io/fabric8/run-java-sh/${RUN_JAVA_VERSION}/run-java-sh-${RUN_JAVA_VERSION}-sh.sh -o /deployments/run-java.sh \
+    && chown 1001 /deployments/run-java.sh \
+    && chmod 540 /deployments/run-java.sh \
+    && echo "securerandom.source=file:/dev/urandom" >> /etc/alternatives/jre/lib/security/java.security
 
-# Install the Java runtime, create a user for running the app, and set permissions
-RUN   yum install -y --disableplugin=subscription-manager java-1.8.0-openjdk-headless && \
-      yum clean all --disableplugin=subscription-manager -y && \
-      mkdir -p /opt/app-root/bin
+# Configure the JAVA_OPTIONS, you can add -XshowSettings:vm to also display the heap size.
+ENV JAVA_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 
-# Copy the runnable fat JAR to the container.
-ADD   https://github.com/RedHatTraining/DO288-apps/releases/download/OCP-4.1-1/hello-java.jar /opt/app-root/bin/
-
-COPY  run-app.sh /opt/app-root/bin/
-
-RUN chgrp -R 0 /opt/app-root && \
- chmod -R g=u /opt/app-root
+COPY target/lib/* /deployments/lib/
+COPY target/*-runner.jar /deployments/app.jar
 
 EXPOSE 8080
+USER 1001
 
-USER  1001
-
-# Run the fat JAR
-CMD   /opt/app-root/bin/run-app.sh
+ENTRYPOINT [ "/deployments/run-java.sh" ]
