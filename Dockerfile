@@ -1,14 +1,21 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5
-
+FROM openjdk:11.0.7-jre-slim-buster
+ 
+LABEL base-image="openjdk:11.0.7-jre-slim-buster" \
+      java-version="11.0.7" \
+      purpose="Hello World with Java and Dockerfile"
+ 
 MAINTAINER Muhammad Edwin < edwin at redhat dot com >
-
-LABEL BASE_IMAGE="registry.access.redhat.com/ubi8/ubi-minimal:8.5"
-LABEL JAVA_VERSION="11"
-
-RUN microdnf install --nodocs java-11-openjdk-headless && microdnf clean all
-
-WORKDIR /work/
-COPY target/*.jar /work/application.jar
-
+ 
+# set working directory at /deployments
+WORKDIR /deployments
+ 
+# copy my jar file
+COPY existing-app.jar app.jar
+ 
+# gives uid
+USER 185
+ 
 EXPOSE 8080
-CMD ["java", "-jar", "application.jar"]
+ 
+# run it
+CMD ["java", "-jar","app.jar"]
